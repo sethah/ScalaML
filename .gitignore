@@ -1,1 +1,6 @@
 *.iml
+*.xml
+.idea*
+*.ipynb
+project/*
+target/*
