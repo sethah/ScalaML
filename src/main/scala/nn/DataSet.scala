@@ -7,10 +7,6 @@ case class LabeledPoint(label: Double, features: BDV[Double])
 
 class DataSet(val inputs: BDM[Double], val outputs: BDM[Double]) {
 
-//  def this(features: Array[BDV[Double]], labels: Array[Int]) = {
-//    this(features.zip(labels).map { case (f, l) => LabeledPoint(l, f) })
-//  }
-
   val numFeatures = inputs.cols
   val numExamples = inputs.rows
 

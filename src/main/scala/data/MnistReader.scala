@@ -86,9 +86,18 @@ class MnistDataset(location: String, dataset: String) {
 
   def imagesAsMatrices = imageReader.imagesAsMatrices
   def imagesAsVectors = imageReader.imagesAsVectors
+  def imagesAsMatrix(n: Int): DenseMatrix[Double] = {
+    val images = imagesAsVectors.take(n)
+    new DenseMatrix(images.head.length, n, images.flatMap(_.toArray).toArray).t
+  }
+
 
   def labelsAsInts = labelReader.labelsAsInts
   def labelsAsVectors = labelReader.labelsAsVectors
+  def labelsAsMatrix(n: Int): DenseMatrix[Double] = {
+    val labels = labelsAsVectors.take(n)
+    new DenseMatrix(labels.head.length, n, labels.flatMap(_.toArray).toArray).t
+  }
 
   def examples = imagesAsVectors zip labelsAsVectors
 

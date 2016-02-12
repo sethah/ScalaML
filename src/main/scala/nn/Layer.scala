@@ -1,8 +1,10 @@
 package nn
 
-import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, * => bCast}
+import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, *}
 
-class Layer(var weights: BDM[Double], var bias: BDV[Double], val activation: ActivationFunction) {
+class Layer(var weights: BDM[Double],
+            var bias: BDV[Double],
+            val activationFunction: ActivationFunction) {
 
   val numInputs = weights.rows
   val numOutputs = weights.cols
@@ -16,16 +18,19 @@ class Layer(var weights: BDM[Double], var bias: BDV[Double], val activation: Act
 
   def linearPredictor(a: BDM[Double]): BDM[Double] = {
     val weighted = a * weights.t
-//    println(s"${weighted.rows}, ${weighted.cols}, ${bias.length}")
-    weighted(bCast, ::) + bias
+    weighted(*, ::) + bias
+  }
+
+  def prevDelta(nextDelta: BDM[Double], activationDeriv: BDM[Double]): BDM[Double] = {
+    (nextDelta * weights) :* activationDeriv
   }
 
   def feedForward(a: BDV[Double]): BDV[Double] = {
-    activation(linearPredictor(a))
+    activationFunction(linearPredictor(a))
   }
 
   def feedForward(a: BDM[Double]): BDM[Double] = {
-    activation(linearPredictor(a))
+    activationFunction(linearPredictor(a))
   }
 
 }
