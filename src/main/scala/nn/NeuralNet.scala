@@ -5,15 +5,16 @@ import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, argmax, sum, *}
 /**
  * Feedforward neural network.
  */
-class NeuralNet(val sizes: Array[Int],
-                val costFunction: CostFunction,
-                activationFunction: ActivationFunction) {
+class NeuralNet(val layers: List[Layer], val costFunction: CostFunction) {
 
-  val layers = sizes.sliding(2).map { case Array(in, out) =>
-    Layer(in, out, activationFunction)
-  }.toList
+  def this(sizes: Array[Int], costFunction: CostFunction,
+           activationFunction: ActivationFunction) = {
+    this(NeuralNet.initLayers(sizes, activationFunction), costFunction)
+  }
 
   val numLayers = layers.length
+
+  val topology = layers.head.weights.cols +: layers.map(layer => layer.bias.length)
 
   def train(dataSet: DataSet,
             miniBatchSize: Int,
@@ -47,7 +48,7 @@ class NeuralNet(val sizes: Array[Int],
     }.unzip
 
     val outputDelta = costFunction.derivative(activations.last, y) :*
-      activationFunction.derivative(linearPredictors.last)
+      layers.last.activationFunction.derivative(linearPredictors.last)
 
     val deltas = (0 until (numLayers - 1)).scanRight(outputDelta) { case (i, delta) =>
       val z = linearPredictors(i + 1)
@@ -76,5 +77,14 @@ class NeuralNet(val sizes: Array[Int],
     val actual = data.outputs(*, ::).map(v => argmax(BDV(v.toArray)))
     val numCorrect = sum((predicted - actual).mapValues(v => if (v == 0) 1 else 0))
     (numCorrect, data.numExamples)
+  }
+}
+
+object NeuralNet {
+
+  def initLayers(sizes: Array[Int], activationFunction: ActivationFunction): List[Layer] = {
+    sizes.sliding(2).map { case Array(in, out) =>
+      Layer(in, out, activationFunction)
+    }.toList
   }
 }
