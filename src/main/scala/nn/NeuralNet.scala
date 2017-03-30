@@ -24,8 +24,12 @@ class NeuralNet(val layers: List[Layer], val costFunction: CostFunction) {
             validationData: Option[DataSet] = None) = {
 
     val shouldValidate = validationData.isDefined
+    val costs = new Array[Double](epochs)
+    val accuracy = new Array[Double](epochs)
     dataSet.miniBatches(miniBatchSize).take(epochs).zipWithIndex.foreach { case (batch, iter) =>
-      val (deltaB, deltaW) = backprop(batch.inputs, batch.outputs)
+      val (deltaB, deltaW, numCorrect, cost) = backprop(batch.inputs, batch.outputs)
+      costs(iter) = cost
+      accuracy(iter) = batch.numExamples - numCorrect
 
       // update weights
       layers.zipWithIndex.foreach { case (layer, i) =>
@@ -33,15 +37,20 @@ class NeuralNet(val layers: List[Layer], val costFunction: CostFunction) {
         layer.bias = layer.bias - deltaB(i).mapValues(_ * (learningRate / batch.numExamples))
       }
 
-      println(s"Epoch: $iter")
-      if (shouldValidate) {
-        val (numCorrect, total) = evaluate(validationData.get)
-        println(s"$numCorrect / $total")
+      if (iter % evalInterval == 0 || iter == epochs - 1) {
+        println(s"Epoch: $iter")
+        if (shouldValidate) {
+          val (numCorrect, total) = evaluate(validationData.get)
+          println(s"$numCorrect / $total")
+        }
       }
     }
+    costs.grouped(10).map(_.sum / (10 * 10)).toArray.view(0, 10).foreach(println)
+    println("***")
+    costs.grouped(10).map(_.sum / (10 * 10)).toArray.view(epochs / 10 - 10, epochs / 10 - 1).foreach(println)
   }
 
-  def backprop(x: BDM[Double], y: BDM[Double]): (Array[BDV[Double]], Array[BDM[Double]]) = {
+  def backprop(x: BDM[Double], y: BDM[Double]): (Array[BDV[Double]], Array[BDM[Double]], Double, Double) = {
 
     val (linearPredictors, activations) = layers.scanLeft((BDM.zeros[Double](x.rows, x.cols), x)) {
       case ((z, a), layer) => (layer.linearPredictor(a), layer.feedForward(a))
@@ -49,6 +58,9 @@ class NeuralNet(val layers: List[Layer], val costFunction: CostFunction) {
 
     val outputDelta = costFunction.derivative(activations.last, y) :*
       layers.last.activationFunction.derivative(linearPredictors.last)
+
+    val cost = sum(costFunction(activations.last, y))
+    val numCorrect = evaluate(activations.last, y)
 
     val deltas = (0 until (numLayers - 1)).scanRight(outputDelta) { case (i, delta) =>
       val z = linearPredictors(i + 1)
@@ -59,7 +71,7 @@ class NeuralNet(val layers: List[Layer], val costFunction: CostFunction) {
       (sum(delta.t(*, ::)), delta.t * activations(i))
     }.unzip
 
-    (nablaB.toArray, nablaW.toArray)
+    (nablaB.toArray, nablaW.toArray, numCorrect, cost)
   }
 
   def feedForward(input: BDV[Double]): BDV[Double] = {
@@ -72,11 +84,15 @@ class NeuralNet(val layers: List[Layer], val costFunction: CostFunction) {
 
   def evaluate(data: DataSet): (Int, Int) = {
     val outputActivations = feedForward(data.inputs)
-    val N = outputActivations.cols
-    val predicted = outputActivations(*, ::).map(v => argmax(BDV(v.toArray)))
-    val actual = data.outputs(*, ::).map(v => argmax(BDV(v.toArray)))
-    val numCorrect = sum((predicted - actual).mapValues(v => if (v == 0) 1 else 0))
+    val numCorrect = evaluate(outputActivations, data.outputs)
     (numCorrect, data.numExamples)
+  }
+
+  def evaluate(activations: BDM[Double], y: BDM[Double]): Int = {
+    val predicted = activations(*, ::).map(v => argmax(BDV(v.toArray)))
+    val actual = y(*, ::).map(v => argmax(BDV(v.toArray)))
+    val numCorrect = sum((predicted - actual).mapValues(v => if (v == 0) 1 else 0))
+    numCorrect
   }
 }
 

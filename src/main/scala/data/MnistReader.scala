@@ -30,9 +30,19 @@ class MnistLabelReader(location: String, fileName: String) extends MnistFileRead
 
   val count = stream.readInt()
 
-  val labelsAsInts = readLabels(0)
-  val labelsAsVectors = labelsAsInts.map { label =>
-    DenseVector.tabulate[Double](10) { i => if (i == label) 1.0 else 0.0 }
+//  val labelsAsInts = readLabels(0)
+//  val labelsAsVectors = labelsAsInts.map { label =>
+//    DenseVector.tabulate[Double](10) { i => if (i == label) 1.0 else 0.0 }
+//  }
+  def labelsAsArray(n: Int) = {
+    val m = new Array[Double](n * 10)
+    var i = 0
+    while (i < n) {
+      val label = stream.readByte()
+      m(i * 10 + label) = 1.0
+      i += 1
+    }
+    m
   }
 
   private[this] def readLabels(ind: Int): Stream[Int] =
@@ -51,16 +61,26 @@ class MnistImageReader(location: String, fileName: String) extends MnistFileRead
   val width = stream.readInt()
   val height = stream.readInt()
 
-  val imagesAsMatrices = readImages(0)
-  val imagesAsVectors = imagesAsMatrices map { image =>
-    DenseVector.tabulate(width * height) { i => image(i / width, i % height) / 255.0 }
-  }
+//  val imagesAsMatrices = readImages(0)
+//  val imagesAsVectors = imagesAsMatrices map { image =>
+//    DenseVector.tabulate(width * height) { i => image(i / width, i % height) / 256.0 }
+//  }
+  def imagesAsArray(n: Int) = readAllImages(n)
 
   private[this] def readImages(ind: Int): Stream[DenseMatrix[Int]] =
     if (ind >= count)
       Stream.empty
     else
       Stream.cons(readImage(), readImages(ind + 1))
+
+  private[this] def readAllImages(n: Int): Array[Double] = {
+    val m = new Array[Double](height * width * n)
+
+    for (i <- 0 until height * width * n) {
+      m(i) = stream.readUnsignedByte().toDouble / 255.0
+    }
+    m
+  }
 
   private[this] def readImage(): DenseMatrix[Int] = {
     val m = DenseMatrix.zeros[Int](height, width)
@@ -84,22 +104,24 @@ class MnistDataset(location: String, dataset: String) {
   def imageWidth = imageReader.width
   def imageHeight = imageReader.height
 
-  def imagesAsMatrices = imageReader.imagesAsMatrices
-  def imagesAsVectors = imageReader.imagesAsVectors
-  def imagesAsMatrix(n: Int): DenseMatrix[Double] = {
-    val images = imagesAsVectors.take(n)
-    new DenseMatrix(images.head.length, n, images.flatMap(_.toArray).toArray).t
-  }
+//  def imagesAsMatrices = imageReader.imagesAsMatrices
+//  def imagesAsVectors = imageReader.imagesAsVectors
+  def imagesAsArray(n: Int) = imageReader.imagesAsArray(n)
+//  def imagesAsMatrix(n: Int): DenseMatrix[Double] = {
+//    val images = imagesAsVectors.take(n)
+//    new DenseMatrix(images.head.length, n, images.flatMap(_.toArray).toArray).t
+//  }
 
 
-  def labelsAsInts = labelReader.labelsAsInts
-  def labelsAsVectors = labelReader.labelsAsVectors
-  def labelsAsMatrix(n: Int): DenseMatrix[Double] = {
-    val labels = labelsAsVectors.take(n)
-    new DenseMatrix(labels.head.length, n, labels.flatMap(_.toArray).toArray).t
-  }
+//  def labelsAsInts = labelReader.labelsAsInts
+//  def labelsAsVectors = labelReader.labelsAsVectors
+//  def labelsAsMatrix(n: Int): DenseMatrix[Double] = {
+//    val labels = labelsAsVectors.take(n)
+//    new DenseMatrix(labels.head.length, n, labels.flatMap(_.toArray).toArray).t
+//  }
+  def labelsAsArray(n: Int) = labelReader.labelsAsArray(n)
 
-  def examples = imagesAsVectors zip labelsAsVectors
+//  def examples = imagesAsVectors zip labelsAsVectors
 
 }
 
